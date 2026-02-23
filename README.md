@@ -171,11 +171,6 @@
       color: #155724;
     }
 
-    .badge.rejected {
-      background: #f8d7da;
-      color: #721c24;
-    }
-
     /* Buttons */
     .btn {
       padding: 8px 15px;
@@ -209,6 +204,16 @@
     .btn-save {
       background: #006a7a;
       color: white;
+    }
+
+    .btn-refresh {
+      background: #6c757d;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 20px;
     }
 
     /* Modal */
@@ -277,6 +282,20 @@
       cursor: pointer;
     }
 
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+      font-size: 1rem;
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 15px;
+      color: #ddd;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .admin-header {
@@ -299,7 +318,6 @@
       <input type="text" id="adminUsername" placeholder="Username" value="admin">
       <input type="password" id="adminPassword" placeholder="Password">
       <button onclick="adminLogin()">Login to Dashboard</button>
-      <p style="text-align:center; margin-top:15px; color:#666; font-size:0.8rem;">Demo: admin / admin123</p>
     </div>
 
     <!-- ADMIN DASHBOARD (Hidden initially) -->
@@ -307,7 +325,10 @@
       <!-- Header -->
       <div class="admin-header">
         <h1><i class="fas fa-crown" style="margin-right:10px;"></i> CIUE Admin Panel</h1>
-        <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        <div>
+          <button class="btn-refresh" onclick="refreshDashboard()"><i class="fas fa-sync-alt"></i> Refresh Data</button>
+          <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
       </div>
 
       <!-- Stats Cards -->
@@ -480,7 +501,7 @@
         isAdminLoggedIn = true;
         showDashboard();
       } else {
-        alert('Invalid credentials! Try admin/admin123');
+        alert('Invalid credentials!');
       }
     }
 
@@ -495,10 +516,7 @@
     function showDashboard() {
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('adminDashboard').style.display = 'block';
-      loadStats();
-      loadPendingDeposits();
-      loadPendingWithdrawals();
-      loadAllMembers();
+      refreshDashboard();
     }
 
     // Load Stats
@@ -537,7 +555,15 @@
       const tbody = document.getElementById('pendingDepositsBody');
       
       if (pendingDeposits.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px;">No pending deposits</td></tr>';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center; padding:40px;">
+              <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>No pending deposits</p>
+              </div>
+            </td>
+          </tr>`;
         return;
       }
 
@@ -567,6 +593,8 @@
     }
 
     function approveDeposit(id) {
+      if (!confirm('Approve this deposit?')) return;
+      
       const deposit = pendingDeposits.find(d => d.id === id);
       if (!deposit) return;
 
@@ -596,7 +624,7 @@
         localStorage.setItem('cueUsers', JSON.stringify(users));
       }
 
-      // Remove from pending
+      // Remove from pending - permanently!
       pendingDeposits = pendingDeposits.filter(d => d.id !== id);
       localStorage.setItem('pendingDeposits', JSON.stringify(pendingDeposits));
 
@@ -605,11 +633,14 @@
     }
 
     function rejectDeposit(id) {
-      if (confirm('Are you sure you want to reject this deposit?')) {
-        pendingDeposits = pendingDeposits.filter(d => d.id !== id);
-        localStorage.setItem('pendingDeposits', JSON.stringify(pendingDeposits));
-        refreshDashboard();
-      }
+      if (!confirm('Reject this deposit?')) return;
+      
+      // Remove from pending - permanently!
+      pendingDeposits = pendingDeposits.filter(d => d.id !== id);
+      localStorage.setItem('pendingDeposits', JSON.stringify(pendingDeposits));
+
+      alert(`❌ Deposit rejected`);
+      refreshDashboard();
     }
 
     // ========== PENDING WITHDRAWALS ==========
@@ -617,7 +648,15 @@
       const tbody = document.getElementById('pendingWithdrawalsBody');
       
       if (pendingWithdrawals.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">No pending withdrawals</td></tr>';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center; padding:40px;">
+              <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>No pending withdrawals</p>
+              </div>
+            </td>
+          </tr>`;
         return;
       }
 
@@ -648,20 +687,22 @@
     }
 
     function approveWithdrawal(id) {
+      if (!confirm('Approve this withdrawal?')) return;
+      
       const withdrawal = pendingWithdrawals.find(w => w.id === id);
       if (!withdrawal) return;
 
-      // Withdrawal already processed (money deducted when requested)
-      // Just mark as completed
-
+      // Remove from pending - permanently!
       pendingWithdrawals = pendingWithdrawals.filter(w => w.id !== id);
       localStorage.setItem('pendingWithdrawals', JSON.stringify(pendingWithdrawals));
 
-      alert(`✅ Withdrawal of ${withdrawal.amount.toLocaleString()} UGX approved and sent to ${withdrawal.mobileNumber}`);
+      alert(`✅ Withdrawal approved!`);
       refreshDashboard();
     }
 
     function rejectWithdrawal(id) {
+      if (!confirm('Reject this withdrawal? Funds will be returned to user.')) return;
+      
       const withdrawal = pendingWithdrawals.find(w => w.id === id);
       if (!withdrawal) return;
 
@@ -676,10 +717,11 @@
         localStorage.setItem('cueUsers', JSON.stringify(users));
       }
 
+      // Remove from pending - permanently!
       pendingWithdrawals = pendingWithdrawals.filter(w => w.id !== id);
       localStorage.setItem('pendingWithdrawals', JSON.stringify(pendingWithdrawals));
 
-      alert(`❌ Withdrawal rejected and funds returned to user`);
+      alert(`❌ Withdrawal rejected and funds returned`);
       refreshDashboard();
     }
 
@@ -689,7 +731,15 @@
       const membersArray = Object.values(users);
       
       if (membersArray.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;">No members found</td></tr>';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; padding:40px;">
+              <div class="empty-state">
+                <i class="fas fa-users-slash"></i>
+                <p>No members found</p>
+              </div>
+            </td>
+          </tr>`;
         return;
       }
 
@@ -698,6 +748,19 @@
         user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.phone?.includes(searchTerm)
       );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; padding:40px;">
+              <div class="empty-state">
+                <i class="fas fa-search"></i>
+                <p>No matching members found</p>
+              </div>
+            </td>
+          </tr>`;
+        return;
+      }
 
       let html = '';
       filtered.forEach(user => {
@@ -810,6 +873,11 @@
 
     // ========== REFRESH ==========
     function refreshDashboard() {
+      // Reload all data from localStorage
+      users = JSON.parse(localStorage.getItem('cueUsers')) || {};
+      pendingDeposits = JSON.parse(localStorage.getItem('pendingDeposits')) || [];
+      pendingWithdrawals = JSON.parse(localStorage.getItem('pendingWithdrawals')) || [];
+      
       loadStats();
       loadPendingDeposits();
       loadPendingWithdrawals();
@@ -818,57 +886,6 @@
 
     // ========== INIT ==========
     window.onload = function() {
-      // Create sample data if none exists
-      if (Object.keys(users).length === 0) {
-        users['0756673144'] = {
-          fullName: 'Admin User',
-          phone: '0756673144',
-          country: 'Uganda',
-          password: 'admin123',
-          memberLevel: 9,
-          memberExpiry: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
-          mainWallet: 1000000,
-          commissionWallet: 387566.50
-        };
-        users['0777123456'] = {
-          fullName: 'John Doe',
-          phone: '0777123456',
-          country: 'Uganda',
-          password: '123456',
-          memberLevel: 3,
-          memberExpiry: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
-          mainWallet: 25000,
-          commissionWallet: 87500
-        };
-        localStorage.setItem('cueUsers', JSON.stringify(users));
-      }
-
-      // Sample pending data
-      if (pendingDeposits.length === 0) {
-        pendingDeposits.push({
-          id: 1,
-          userId: '0777123456',
-          phone: '0777123456',
-          amount: 50000,
-          level: 3,
-          timestamp: new Date().toISOString()
-        });
-        localStorage.setItem('pendingDeposits', JSON.stringify(pendingDeposits));
-      }
-
-      if (pendingWithdrawals.length === 0) {
-        pendingWithdrawals.push({
-          id: 1,
-          userId: '0777123456',
-          phone: '0777123456',
-          amount: 10000,
-          wallet: 'main',
-          mobileNumber: '0777123456',
-          timestamp: new Date().toISOString()
-        });
-        localStorage.setItem('pendingWithdrawals', JSON.stringify(pendingWithdrawals));
-      }
-
       // Check if already logged in
       if (isAdminLoggedIn) {
         showDashboard();
